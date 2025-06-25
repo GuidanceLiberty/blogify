@@ -12,7 +12,7 @@ const Navbar = ({ showMenu, setShowMenu, showDropdown, setShowDropdown }) => {
   const userInfo = localStorage.getItem('user');
   const user = JSON.parse(userInfo);
   const profilePic = URL + '/' + user?.photo; 
-  const navigate = useNavigate();   console.log("profilePic :: ", profilePic);
+  const navigate = useNavigate();   //console.log("profilePic :: ", profilePic);
 
   const redirectToLogin = () => { return navigate(`/login`); }
   const handleLogout = () => {
