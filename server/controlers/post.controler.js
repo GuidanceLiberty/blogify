@@ -147,7 +147,7 @@ export const getSinglePost = async(req, res) => {
 export const updatePost = async(req, res) => {
     const post_slug = req.params.slug;   //return console.log("Response : ", req.body) ;
      
-    const { title, body, categories, photo } = req.body;   
+    const { title, body, categories, photo, author } = req.body;   
     const cate_id = new ObjectId(categories);  //return console.log("object : ", photo?.length) ;
     
     const toSlug = (title) => {

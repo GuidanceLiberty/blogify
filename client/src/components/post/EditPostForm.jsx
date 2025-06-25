@@ -9,9 +9,9 @@ import { postSchema } from "../../schema";
 import { Loader } from "lucide-react";
 
 const EditPostForm = () => {
-    const URL = process.env.REACT_APP_BASE_URL;
-      let user = localStorage.getItem('user');
-      user = JSON.parse(user);
+      const URL = process.env.REACT_APP_BASE_URL;
+      const userInfo = localStorage.getItem('user');
+      const user = JSON.parse(userInfo);
       const params = useParams();
       const post_slug = params?.slug;
 
@@ -20,18 +20,18 @@ const EditPostForm = () => {
       const [photo, setPhoto] = useState('');
       const [file, setFile] = useState(null);
 
-      let res;
+      // let res;
 
       const fetcher = (...args) => fetch(...args, {headers: {'Authorization': `Bearer ${user.token}`}}).then((Response) => Response.json());
       const { data: allCategories, mutate, } = useSWR(`${URL}/categories`, fetcher);
 
       const { data: post, mutate: post_mutate, error: post_error, isLoading: post_isLoading } = useSWR(`${URL}/posts/${post_slug}`, fetcher);
 
-      const { data: sing_post, mutate: s_post_mutate, error: s_post_error, isLoading: s_post_isLoading } = useSWR(`${URL}/posts/single-post/${post_slug}`, fetcher);
+      // const { data: sing_post, mutate: s_post_mutate, error: s_post_error, isLoading: s_post_isLoading } = useSWR(`${URL}/posts/single-post/${post_slug}`, fetcher);
 
 
 
-      const onSubmit = async(values, actions) => {   alert("Yess")
+      const onSubmit = async(values, actions) => {   alert("Yes")
         handleUpload();
 
         try {
@@ -75,7 +75,9 @@ const EditPostForm = () => {
 
     try {
       const res = await axios.post(`${URL}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
       toast.success(res.data.message);

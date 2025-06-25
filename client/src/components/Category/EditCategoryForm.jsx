@@ -12,6 +12,8 @@ const EditCategoryForm = () => {
     const navigate = useNavigate();
     const params = useParams();
     const cate_id = params?.category_id;
+    let user = localStorage.getItem('user');
+    user = JSON.parse(user);
     
     
     const [error, setError] = useState(null);
@@ -19,7 +21,7 @@ const EditCategoryForm = () => {
     const [message, setMessage] = useState('');
     let res;
     
-    const fetcher = (...args) => fetch(...args).then((Response) => Response.json());
+    const fetcher = (...args) => fetch(...args, {headers: {'Authorization': `Bearer ${user.token}`}}).then((Response) => Response.json());
     const { data: category, mutate, cate_error, isLoading } = useSWR(`${URL}/categories/${cate_id}`, fetcher);
     console.log("category :: ", category?.category);
     
@@ -37,6 +39,7 @@ const EditCategoryForm = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`
                 },
                 body: JSON.stringify({...values}),
             }); 
