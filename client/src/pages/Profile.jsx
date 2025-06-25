@@ -1,6 +1,4 @@
-import React from 'react'
 import MainLayout from '../components/MainLayout'
-import { useNavigate } from 'react-router-dom'
 import { FaUserTie } from 'react-icons/fa';
 import { useEffect, useState } from "react";
 
@@ -9,9 +7,7 @@ const Profile = () => {
   const UPLOAD_URL = process.env.REACT_APP_UPLOAD_URL;
     let user = localStorage.getItem('user');
     user = JSON.parse(user);
-    const user_id = user?._id;
-    const profilePic = UPLOAD_URL + user?.photo; 
-    const navigate = useNavigate();   console.log("profilePic :: ", profilePic);
+    const profilePic = UPLOAD_URL + user?.photo;  //console.log("profilePic :: ", profilePic);
     const ProfileRow = ({ label, value }) => (
   <div className="flex justify-between items-center bg-gray-100 rounded-md px-4 py-2">
     <span className="text-gray-700 font-semibold">{label}</span>
@@ -27,7 +23,7 @@ useEffect(() => {
       const user = JSON.parse(localStorage.getItem('user'));
       const userId = user?._id;
 
-      const res = await fetch(`http://localhost:9000/api/posts/count/${userId}`);
+      const res = await fetch(`${URL}/posts/count/${userId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -49,7 +45,7 @@ useEffect(() => {
       const user = JSON.parse(localStorage.getItem('user'));
       const userId = user?._id;
 
-      const res = await fetch(`http://localhost:9000/api/comments/count/${userId}`);
+      const res = await fetch(`${URL}/comments/count/${userId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -72,7 +68,7 @@ useEffect(() => {
       const post = JSON.parse(localStorage.getItem('user'));
       const postId = post?._id;
 
-      const res = await fetch(`http://localhost:9000/api/posts/likes/count/${postId}`);
+      const res = await fetch(`${URL}/posts/likes/count/${postId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -93,7 +89,7 @@ useEffect(() => {
         
         {/* Avatar */}
         {
-          profilePic !== 'http://localhost:9000/uploads/undefined' ? 
+          profilePic !== `${UPLOAD_URL}/undefined` ? 
         <img src={profilePic} className='w-[50%] h-[50%] rounded-full object-cover border-4 border-cyan-500' alt="profile pic" /> : 
           <FaUserTie /> 
         }
