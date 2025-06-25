@@ -67,10 +67,11 @@ const PostDetail = () => {
 
   const removePost = async () => {
     try {
-        const resp = await fetch(`${URL}posts/${slug}`, {
+        const resp = await fetch(`${URL}/posts/${slug}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
+                "Authorization": `Bearer ${user.token}`
             },
         });
         res = await resp.json();
