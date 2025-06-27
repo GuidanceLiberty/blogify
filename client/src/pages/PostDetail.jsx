@@ -41,7 +41,7 @@ const PostDetail = () => {
 
   const imgPath = UPLOAD_URL + post?.data?.photo; 
 
-// console.log("POST : ", posts)
+ console.log("COMMENT : ", comments)
 
 
     // FETCHING SUGGESTED POST
