@@ -25,7 +25,7 @@ export const sendVerificationEmail = async( email, name, verificationToken ) => 
 
 export const sendWelcomeEmail = async (email, name) => {
 	// const recipient = [{ email }];
-    const recipient = [{email: 'akat73441@gmail.com'}];
+    const recipient = [{email: 'heavensent4141@gmail.com'}];
 
 	try {
 		const response = await mailtrapClient.send({
