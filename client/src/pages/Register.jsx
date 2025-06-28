@@ -14,16 +14,19 @@ const Register = () => {
   const URL = process.env.REACT_APP_BASE_URL;
   const navigate = useNavigate();
 
-  const [photo, setPhoto] = useState(avatar);
+  const [preview, setPreview] = useState(avatar);
   const [file, setFile] = useState(null);
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-    setPhoto(e.target.value);
+    const selected = e.target.files[0];
+    if (selected) {
+      setFile(selected);
+      setPreview(URL.createObjectURL(selected));
+    }
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const uploadPhoto = async () => {
+    if (!file) return null;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -32,20 +35,27 @@ const Register = () => {
       const res = await axios.post(`${URL}/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      toast.success(res.data.message);
+      toast.success("Photo uploaded");
+      return res.data.url; // assuming your backend returns { url: "https://cloudinary.com/..." }
     } catch (err) {
-      toast.error("Upload failed");
+      toast.error("Image upload failed");
+      return null;
     }
   };
 
   const onSubmit = async (values, actions) => {
-    handleUpload();
+    const uploadedPhoto = await uploadPhoto();
+
+    if (!uploadedPhoto) {
+      toast.error("Please upload a valid photo");
+      return;
+    }
 
     try {
       const response = await fetch(`${URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, photo }),
+        body: JSON.stringify({ ...values, photo: uploadedPhoto }),
       });
 
       const res = await response.json();
@@ -54,13 +64,13 @@ const Register = () => {
         toast.success(res.message);
         await new Promise((resolve) => setTimeout(resolve, 3000));
         actions.resetForm();
-        return navigate("/verify-email");
+        navigate("/verify-email");
       } else {
         toast.error(res.message);
       }
     } catch (error) {
       toast.error("Error occurred while creating account.");
-      console.error("Error occurred while creating account:", error.message);
+      console.error("Error:", error.message);
     }
   };
 
@@ -85,16 +95,12 @@ const Register = () => {
 
   return (
     <main className="min-h-screen flex flex-col md:flex-row bg-white">
-      {/* Left side image */}
+      {/* Left image */}
       <div className="hidden md:block md:w-1/2">
-        <img
-          src={authBG}
-          alt="auth background"
-          className="w-full h-full object-cover"
-        />
+        <img src={authBG} alt="auth" className="w-full h-full object-cover" />
       </div>
 
-      {/* Form side */}
+      {/* Form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
           <h1 className="text-2xl md:text-3xl font-semibold text-center text-primary mb-8">
@@ -102,7 +108,7 @@ const Register = () => {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name */}
+            {/* Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 <FaUserPlus className="inline mr-2" />
@@ -112,7 +118,7 @@ const Register = () => {
                 type="text"
                 id="name"
                 placeholder="Enter Fullname"
-                className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="mt-1 w-full border px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={values.name}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -132,7 +138,7 @@ const Register = () => {
                 type="email"
                 id="email"
                 placeholder="Enter Email"
-                className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="mt-1 w-full border px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={values.email}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -152,7 +158,7 @@ const Register = () => {
                 type="password"
                 id="password"
                 placeholder="Enter Password"
-                className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="mt-1 w-full border px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={values.password}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -175,9 +181,16 @@ const Register = () => {
                 className="mt-1 w-full text-sm"
                 onChange={handleFileChange}
               />
+              {preview && (
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-14 h-14 object-cover rounded-full mt-2"
+                />
+              )}
             </div>
 
-            {/* Submit button */}
+            {/* Submit */}
             <button
               type="submit"
               className="w-full bg-primary text-white py-2 rounded-md hover:bg-primary-dark transition duration-200 flex justify-center items-center"
@@ -190,7 +203,7 @@ const Register = () => {
               )}
             </button>
 
-            {/* Login link */}
+            {/* Login Link */}
             <p className="text-sm text-center text-gray-600 mt-4">
               Already have an account?{" "}
               <Link to="/login" className="text-primary font-medium">
