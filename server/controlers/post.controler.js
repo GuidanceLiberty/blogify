@@ -5,331 +5,165 @@ import { Category } from "../model/Category.js";
 import url from 'url';
 import { postSchema } from "../schema/index.js";
 
-export const getPosts = async(req, res) => {
-    const parseUrl = url.parse(req.url, true);
-    const query = parseUrl.query;
-    try {
-        let limit = query.limit;
-        if (limit === undefined) { limit = 100 }
+export const getPosts = async (req, res) => {
+  const parseUrl = url.parse(req.url, true);
+  const query = parseUrl.query;
+  try {
+    let limit = query.limit || 100;
 
-        const posts = await Post.find()
-        .populate({
-            path: "author",
-            model: User,
-            select: '_id name email photo'
-        })
-        .populate({
-            path: "categories",
-            model: Category,
-            select: '_id name description'
+    const posts = await Post.find()
+      .populate({ path: "author", model: User, select: '_id name email photo' })
+      .populate({ path: "categories", model: Category, select: '_id name description' })
+      .sort({ createdAt: 'desc' })
+      .limit(limit)
+      .exec();
 
-        })
-        .sort({ createdAt: 'desc' })
-        .limit(limit)
-        .exec();
+    res.status(200).json({ success: true, message: "Records found", posts });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
 
-        if(!posts){
-            return res.status(400).json({
-                success: false, message: "No post found"
-            })
-        }
-        res.status(200).json({
-            success: true, message: "Records found", posts
-        })
+export const createPost = async (req, res) => {
+  const { title, body, categories, photo, author } = req.body;
 
-    } catch (error) {
-        return res.status(400).json({ 
-            success: false, message: error.message
-         });
-    }
-}
+  const toSlug = (title) => title.toLowerCase().replace(/\s+/g, '-');
+  const slug = toSlug(title);
 
-export const createPost = async(req, res) => {
-    const { title, body, categories, photo, author } = req.body;
+  try {
+    const { error } = postSchema.validate({ title, slug, body, categories, author });
+    if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-    const toSlug = (title) => {
-        return title.toLowerCase().replace(/\s+/g, '-');
-    }
-    let slug = toSlug(title);
-    let image = null;
-    if(photo?.length > 12){
-        image = photo.substring(12);
-    }
+    const postExist = await Post.findOne({ title });
+    if (postExist) return res.status(400).json({ success: false, message: "Post already exists" });
 
-    try {
-        const { error } = postSchema.validate({ title, slug, body, categories, author });
+    const post = new Post({ title, slug, body, categories, photo, author });
+    await post.save();
 
-        if( error ){
-        return res.status(400).json({
-            success: false, message: error.details[0].message
-        })
-    }
+    res.status(200).json({ success: true, message: "Post created successfully", post });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
 
-        const postExist = await Post.find({ title })
-        if(!postExist){
-            return res.status(400).json({
-                success: false, message: "Post already exist"
-            })
-        }
+export const getPost = async (req, res) => {
+  const slug = req.params.slug;
+  try {
+    const post = await Post.findOne({ slug })
+      .populate({ path: "author", model: User, select: '_id name email photo' })
+      .populate({ path: "categories", model: Category, select: '_id name description' });
 
-        const post = new Post({
-            title, slug, body, categories, photo: image, author
-        });
-        await post.save();
-        res.status(200).json({
-            success: true, message: "Post created successfully", post
-        });
-    } catch (error) {
-        return res.status(400).json({ 
-            success: false, message: error.message
-         });    
-    }
-}
+    if (!post) return res.status(400).json({ success: false, message: `No post record found` });
 
-export const getPost = async(req, res) => {
-    const slug = req.params.slug;
-    try {
-        if(!slug){
-            throw new Error('Post ID required');
-        }
+    res.status(200).json({ success: true, message: `${post?.title} post found`, data: post });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
 
-        const post = await Post.findOne({slug})
-        .populate({
-            path: "author",
-            model: User,
-            select: '_id name email photo'
-        })
-        .populate({
-            path: "categories",
-            model: Category,
-            select: '_id name description'
-        })
-        if(!post){
-            return res.status(400).json({
-                success: false, message: `No post record found`                
-            });
-        }
-        res.status(200).json({
-            success: true, message: `${post?.title} post found`,
-            data: post
-            });
-    } catch (error) {
-        res.status(400).json({
-            success: false, message: error.message
-        });
-    }
-}
+export const getSinglePost = async (req, res) => {
+  const slug = req.params.slug;
+  try {
+    const post = await Post.findOne({ slug });
+    if (!post) return res.status(400).json({ success: false, message: `No post record found` });
 
-export const getSinglePost = async(req, res) => {
-    const slug = req.params.slug;
-    try {
-        if(!slug){
-            throw new Error('Post ID required');
-        }
+    res.status(200).json({ success: true, message: `${post?.title} post found`, data: post });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
 
-        const post = await Post.findOne({slug});
-        if(!post){
-            return res.status(400).json({
-                success: false, message: `No post record found`                
-            });
-        }
-        res.status(200).json({
-            success: true, message: `${post?.title} post found`,
-            data: post
-            });
-    } catch (error) {
-        res.status(400).json({
-            success: false, message: error.message
-        });
-    }
-}
+export const updatePost = async (req, res) => {
+  const post_slug = req.params.slug;
+  const { title, body, categories, photo, author } = req.body;
+  const cate_id = new ObjectId(categories);
+  const slug = title.toLowerCase().replace(/\s+/g, '-');
 
-export const updatePost = async(req, res) => {
-    const post_slug = req.params.slug;   //return console.log("Response : ", req.body) ;
-     
-    const { title, body, categories, photo, author } = req.body;   
-    const cate_id = new ObjectId(categories);  //return console.log("object : ", photo?.length) ;
-    
-    const toSlug = (title) => {
-        return title.toLowerCase().replace(/\s+/g, '-');
-    }
-    let slug = toSlug(title);
+  try {
+    const { error } = postSchema.validate({ title, slug, body, categories, author });
+    if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-    let image;    //return console.log("FORM DATA : ", req.body, slug); 
-    if(photo?.length > 12){
-        image = photo.substring(12);  //return console.log("Photo Picked : ", image);  
+    const updateData = { title, slug, body, categories: cate_id };
+    if (photo?.length > 12) {
+      updateData.photo = photo; // full Cloudinary URL
     }
 
-    try {
-        const { error } = postSchema.validate({ title, slug, body, categories, author });
+    const updatedPost = await Post.findOneAndUpdate({ slug: post_slug }, updateData, { new: true });
+    if (!updatedPost) return res.status(400).json({ success: false, message: "Failed to update post!" });
 
-        if( error ){
-        return res.status(400).json({
-            success: false, message: error.details[0].message
-        })
+    await updatedPost.save();
+    res.status(200).json({ success: true, message: "Post updated successfully!", updatedPost });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const deletePost = async (req, res) => {
+  const slug = req.params.slug;
+  try {
+    const post = await Post.findOneAndDelete({ slug });
+    if (!post) return res.status(400).json({ success: false, message: `Failed to delete post record` });
+
+    res.status(200).json({ success: true, message: `Post deleted successfully`, data: post });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const likeUnlikePost = async (req, res) => {
+  const { user_id, post_id } = req.body;
+  const userId = new ObjectId(user_id);
+  const postId = new ObjectId(post_id);
+
+  try {
+    const post = await Post.findById(postId);
+    const user = await User.findById(userId);
+
+    const alreadyLiked = post.likes.includes(userId);
+
+    if (!alreadyLiked) {
+      await post.updateOne({ $push: { likes: { $each: [userId], $position: 0 } } });
+      await user.updateOne({ $push: { likes: { $each: [postId], $position: 0 } } });
+      return res.status(200).json({ success: true, message: "Post was liked!" });
+    } else {
+      await post.updateOne({ $pull: { likes: userId } });
+      await user.updateOne({ $pull: { likes: postId } });
+      return res.status(200).json({ success: true, message: "Post was unliked!" });
     }
-        let updatedPost;
-        if(photo?.length > 12){
-            updatedPost = await Post.findOneAndUpdate({ slug: post_slug }, { 
-                title, slug, body, categories: cate_id, photo: image
-             }, { new: true });
-        }
-        else{
-            updatedPost = await Post.findOneAndUpdate({ slug: post_slug }, { 
-                title, slug, body, categories: cate_id
-             }, { new: true });
-        }
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
 
-        if(!updatedPost){
-            return res.status(400).json({success: false, message: "Failed to update post!"});
-        }
+export const getLikedPosts = async (req, res) => {
+  const parseUrl = url.parse(req.url, true);
+  const user_id = req.params.user_id;
+  const query = parseUrl.query;
+  const limit = query.limit || 100;
 
-        await updatedPost.save();
-        res.status(200).json({
-            success: true, message: "Post updated successfully!", updatedPost
-        });
-
-    } catch (error) {
-        return res.status(400).json({success: false, message: error.message});
-    }
-}
-
-export const deletePost = async(req, res) => {
-    const slug = req.params.slug;
-    if(!slug){
-        throw new Error('Slug required');
-    }
-    
-    try {
-        
-        const post = await Post.findOneAndDelete({ slug });
-        if(!post){
-            return res.status(400).json({
-                success: false, message: `Failed to delete post record`                
-            });
-        }
-        
-        res.status(200).json({
-            success: true, message: `Post deleted successfully`,
-            data: post
-            });
-    } catch (error) {
-        res.status(400).json({
-            success: false, message: error.message
-        });
-    }
-}
-
-export const likeUnlikePost = async(req, res) => {
-    const { user_id, post_id } = req.body;
-    const userId = new ObjectId(user_id);   
-    const postId = new ObjectId(post_id); // return console.log("PostId ===> ", postId);
-
-try {
-    //ADD USER TO LIKE UNLIKED POST
-    let addUserToPostLikes; let removeUserFromPostLikes; let addPostToUserLikes; let removePostFromUserLikes;
-
-    const post = await Post.findById({ _id: postId });
-    if (!post.likes.includes(user_id)) {
-        addUserToPostLikes = await post.updateOne({ $push: { likes: { $each: [userId], $position: 0 } } });
-    }
-    else {
-        removeUserFromPostLikes = await post.updateOne({ $pull: { likes: userId } });
-    }
-
-
-    //ADD REMOVE POST TO USER
-    const user = await User.findById({ _id: userId });
-    if (!user.likes.includes(post_id)) {
-        addPostToUserLikes = await user.updateOne({ $push: { likes: { $each: [postId], $position: 0 } } });
-    }
-    else {
-        removePostFromUserLikes = await user.updateOne({ $pull: { likes: postId } });
-    }
-
-    if (addUserToPostLikes && addPostToUserLikes) {
-        res.status(200).json({ success: true, message: "Post was liked!" });
-    }
-    else if (removeUserFromPostLikes && removePostFromUserLikes) {
-        res.status(200).json({
-            success: true, message: 'Post was unliked !'
-        });
-    }
-
-} catch (error) {
-    return res.status(400).json({success: false, message: error.message});
-}
-}
-
-
-export const getLikedPosts = async(req, res) => {
-
-const parseUrl = url.parse(req.url, true);
-const user_id = req.params.user_id; 
-const query = parseUrl.query;
-try {
-    let limit = query.limit; 
-    if(limit === undefined) { limit = 100 }  //return console.log("Limit : ", limit);
-
-    if (!user_id) {
-        res.status(400).json({
-            success: false,
-            message: 'User id is required !'
-        });
-    }
-
+  try {
     const user = await User.findOne({ _id: user_id }).select('-password')
-        .populate({
-            path: "likes",
-            model: Post,
-            select: "_id title slug categories body photo createdAt",
-            populate: [
-                {
-                    path: "author", // Populate the author field within children
-                    model: User,
-                    select: "_id name email photo", // Select only _id and username fields of the author
-                },
-                {
-                    path: "categories", // Populate the author field within children
-                    model: Category,
-                    select: "_id name", // Select only _id and username fields of the author
-                },
-            ],
-        })
-     // Populate the community field with _id and name
-        // .populate({
-        //     path: "likes", // Populate the post field
-        //     populate: [
-        //         {
-        //             path: "author", // Populate the author field within children
-        //             model: User,
-        //             select: "_id", // Select only _id and username fields of the author
-        //         },
-        //     ],
+      .populate({
+        path: "likes",
+        model: Post,
+        select: "_id title slug categories body photo createdAt",
+        populate: [
+          { path: "author", model: User, select: "_id name email photo" },
+          { path: "categories", model: Category, select: "_id name" }
+        ]
+      })
+      .limit(limit)
+      .exec();
 
-        // })
-    .sort({ createdAt: 'desc' })
-    .limit(limit)
-    .exec(); 
-
-    if (user) {
-        res.status(200).json({
-            success: true,
-            message: 'User liked posts found !',
-            data: user
-        });
-    }
-    else {
-        res.status(400).json({
-            success: false,
-            message: 'Fail to fetch user liked posts !'
-        });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Failed to fetch user liked posts!' });
     }
 
-} catch (error) {
-    return res.status(400).json({success: false, message: error.message});
-}
-}
+    res.status(200).json({ success: true, message: 'User liked posts found!', data: user });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
 
 export const getPostCountByUser = async (req, res) => {
   try {
@@ -337,7 +171,6 @@ export const getPostCountByUser = async (req, res) => {
     const count = await Post.countDocuments({ author: user_id });
     res.status(200).json({ success: true, count });
   } catch (error) {
-    console.error('Error counting posts:', error);
     res.status(500).json({ success: false, message: 'Failed to count posts.' });
   }
 };
@@ -348,53 +181,32 @@ export const getLikePostCountByUser = async (req, res) => {
     const count = await Post.countDocuments({ _id: post_id });
     res.status(200).json({ success: true, count });
   } catch (error) {
-    console.error('Error counting posts:', error);
     res.status(500).json({ success: false, message: 'Failed to count liked posts.' });
   }
 };
 
-export const getSearchPosts = async(req, res) => {
-    const parseUrl = url.parse(req.url, true);
-    const query = parseUrl.query;
-    try {
-        let limit = query.limit;
-        let q = query.q;
-        if (limit === undefined) { limit = 100 }
+export const getSearchPosts = async (req, res) => {
+  const parseUrl = url.parse(req.url, true);
+  const query = parseUrl.query;
+  const limit = query.limit || 100;
+  const q = query.q;
 
-        const posts = await Post.find({
-            $or: [
-                { title: { $regex: q, $options: 'i' } },
-                { slug: { $regex: q, $options: 'i' } },
-                { body: { $regex: q, $options: 'i' } }
-            ]
-        })
-        .populate({
-            path: "author",
-            model: User,
-            select: '_id name email photo'
-        })
-        .populate({
-            path: "categories",
-            model: Category,
-            select: '_id name description'
+  try {
+    const posts = await Post.find({
+      $or: [
+        { title: { $regex: q, $options: 'i' } },
+        { slug: { $regex: q, $options: 'i' } },
+        { body: { $regex: q, $options: 'i' } }
+      ]
+    })
+      .populate({ path: "author", model: User, select: '_id name email photo' })
+      .populate({ path: "categories", model: Category, select: '_id name description' })
+      .sort({ createdAt: 'desc' })
+      .limit(limit)
+      .exec();
 
-        })
-        .sort({ createdAt: 'desc' })
-        .limit(limit)
-        .exec();
-
-        if(!posts){
-            return res.status(400).json({
-                success: false, message: "No post found"
-            })
-        }
-        res.status(200).json({
-            success: true, message: "Records found", posts
-        })
-
-    } catch (error) {
-        return res.status(400).json({ 
-            success: false, message: error.message
-         });
-    }
-}
+    res.status(200).json({ success: true, message: "Records found", posts });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
